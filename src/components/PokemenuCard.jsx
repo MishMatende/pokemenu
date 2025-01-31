@@ -1,11 +1,14 @@
 import TypeCard from "./TypeCard";
 import { useEffect, useState } from "react";
 import { getFullPokedexNumber, getPokedexNumber } from "../utils";
+import Modal from "./Modal";
 
 export default function PokemenuCard(props) {
   const { selectedPokemon } = props;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [skill, setSkill] = useState(null);
+  const [loadingSkill, setLoadingSkill] = useState(false);
 
   const { name, height, ability, stats, types, moves, sprites } = data || {};
 
@@ -19,6 +22,45 @@ export default function PokemenuCard(props) {
     return true;
   });
 
+  async function fetchMoveData(move, moveUrl) {
+    if (loadingSkill || !localStorage || !moveUrl) {
+      return;
+    }
+
+    let c = {};
+    if (localStorage.getItem("pokemon-moves")) {
+      c = JSON.parse(localStorage.getItem("pokemon-moves"));
+    }
+
+    if (move in c) {
+      setSkill(c[move]);
+      console.log("Found move in cache");
+      return;
+    }
+
+    try {
+      setLoadingSkill(true);
+      const res = await fetch(moveUrl);
+      const moveData = await res.json();
+      console.log("Fetched move from API", moveData);
+      const description = moveData?.flavor_text_entries.filter((val) => {
+        return (val.version_group.name = "firered-leafgreen");
+      })[0]?.flavor_text;
+
+      const skillData = {
+        name: move,
+        description,
+      };
+      setSkill(skillData);
+      c[move] = skillData;
+      localStorage.setItem("pokemon-moves", JSON.stringify(c));
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setLoadingSkill(false);
+    }
+  }
+
   useEffect(() => {
     if (loading || !localStorage) {
       return;
@@ -31,6 +73,7 @@ export default function PokemenuCard(props) {
 
     if (selectedPokemon in cache) {
       setData(cache[selectedPokemon]);
+      console.log("Found pokemon in cache");
       return;
     }
 
@@ -43,7 +86,7 @@ export default function PokemenuCard(props) {
         const res = await fetch(finalUrl);
         const pokemonData = await res.json();
         setData(pokemonData);
-        console.log(pokemonData);
+        console.log("Fetched Pokemon Data!");
 
         cache[selectedPokemon] = pokemonData;
         localStorage.setItem("pokemenu", JSON.stringify(cache));
@@ -66,6 +109,22 @@ export default function PokemenuCard(props) {
 
   return (
     <div className="poke-card">
+      {skill && (
+        <Modal
+          handleCloseModal={() => {
+            setSkill(null);
+          }}
+        >
+          <div>
+            <h6>Name</h6>
+            <h2 className="skill-name">{skill.name.replaceAll("-", " ")}</h2>
+          </div>
+          <div>
+            <h6>Description</h6>
+            <p>{skill.description}</p>
+          </div>
+        </Modal>
+      )}
       <div>
         <h4>#{getFullPokedexNumber(selectedPokemon)}</h4>
         <h2>{name}</h2>
@@ -113,7 +172,9 @@ export default function PokemenuCard(props) {
             <button
               className="button-card pokemon-move"
               key={moveIndex}
-              onClick={() => {}}
+              onClick={() => {
+                fetchMoveData(moveObj?.move?.name, moveObj?.move?.url);
+              }}
             >
               <p>{moveObj?.move?.name.replaceAll("-", " ")}</p>
             </button>
