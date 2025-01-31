@@ -1,6 +1,6 @@
-import { Header } from "./components/Header";
-import { SideNav } from "./components/SideNav";
-import { PokemenuCard } from "./components/PokemenuCard";
+import Header from "./components/Header";
+import SideNav from "./components/SideNav";
+import PokemenuCard from "./components/PokemenuCard";
 import { useState } from "react";
 
 function App() {
